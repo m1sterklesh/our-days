@@ -31,6 +31,22 @@
 
 Задачи, созданные в локальном режиме, при первом входе автоматически перенесутся в облако.
 
+## Напоминания (push)
+
+В каждой задаче можно выбрать «Напомнить»: в момент начала, за 10/15/30 минут, за час или за день. Задачи без времени напоминают от 9:00. Уведомления приходят на все подписанные устройства обоих.
+
+Как это устроено: `pg_cron` раз в минуту вызывает Edge Function `send-reminders`, она находит подошедшие напоминания и шлёт Web Push. Каждое напоминание отправляется один раз, после переноса задачи — заново.
+
+Включить на устройстве: колокольчик в шапке → «Включить» → «Проверить». На iPhone — только из иконки на экране «Домой» (iOS 16.4+).
+
+Настройка сервера (один раз):
+
+1. `npx web-push generate-vapid-keys` — публичный ключ в `js/config.js` (`VAPID_PUBLIC_KEY`).
+2. `npx supabase login` (в обычном терминале), затем
+   `npx supabase secrets set --project-ref <ref> VAPID_PUBLIC_KEY=… VAPID_PRIVATE_KEY=… VAPID_SUBJECT=mailto:… CRON_SECRET=…`
+3. `npx supabase functions deploy send-reminders --project-ref <ref> --no-verify-jwt --use-api`
+4. В `supabase/reminders.sql` заменить `CRON_SECRET_HERE` на тот же `CRON_SECRET` и выполнить в SQL Editor.
+
 ## Безопасность
 
 - Ключ `anon` публичный по замыслу Supabase. Данные защищают политики Row Level Security: читать и писать может только вошедший пользователь, у которого есть строка в `members`.
