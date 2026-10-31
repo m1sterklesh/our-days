@@ -173,6 +173,40 @@ const Api = (() => {
     return rest(`tasks?id=eq.${encodeURIComponent(id)}`, { method: 'DELETE' });
   }
 
+  /** Сохранить подписку устройства (если такой endpoint уже есть — обновить). */
+  function savePushSubscription(row) {
+    return rest('push_subscriptions?on_conflict=endpoint', {
+      method: 'POST',
+      body: row,
+      prefer: 'resolution=merge-duplicates,return=minimal',
+    });
+  }
+
+  function deletePushSubscription(endpoint) {
+    return rest(`push_subscriptions?endpoint=eq.${encodeURIComponent(endpoint)}`, { method: 'DELETE' });
+  }
+
+  /** Попросить сервер прислать тестовое уведомление на мои устройства. */
+  async function sendTestPush() {
+    const token = await getAccessToken();
+    let res;
+    try {
+      res = await fetch(`${baseUrl()}/functions/v1/send-reminders`, {
+        method: 'POST',
+        headers: {
+          apikey: CONFIG.SUPABASE_ANON_KEY,
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ test: true }),
+      });
+    } catch (err) {
+      throw httpError('Network error', 0);
+    }
+    if (!res.ok) throw httpError(`Function ${res.status}`, res.status);
+    return res.json();
+  }
+
   function fetchMembers() {
     return rest('members?select=user_id,slot,name,color');
   }
@@ -204,5 +238,8 @@ const Api = (() => {
     updateTask,
     deleteTask,
     fetchMembers,
+    savePushSubscription,
+    deletePushSubscription,
+    sendTestPush,
   };
 })();

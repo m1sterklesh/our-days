@@ -22,6 +22,9 @@ const CONFIG = {
   },
   BOTH: { name: 'Вместе', color: '#B39CDB' },
 
+  // Публичный VAPID-ключ для push-уведомлений (приватный — только в секретах Supabase)
+  VAPID_PUBLIC_KEY: 'BJZkPaDfgEfjBr45NaJE1eO7kiND8AG9OUAdY25iXaYkC9jhjVIVq3IrBFtvEeD-5dNKa-yiRZTJ9HUwW47uSc4',
+
   // Как часто подтягивать изменения второго человека (мс)
   SYNC_INTERVAL: 20000,
 };

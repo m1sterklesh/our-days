@@ -57,6 +57,20 @@ const Tasks = (() => {
     });
   }
 
+  /**
+   * Момент напоминания в UTC: локальные дата и время минус «за сколько».
+   * Задачи без времени напоминают от 9:00 того дня.
+   * @returns {string|null} ISO-строка или null, если напоминание выключено
+   */
+  function computeRemindAt(key, time, remindBefore) {
+    if (remindBefore === null || remindBefore === undefined) return null;
+    const [y, m, d] = key.split('-').map(Number);
+    const [hh, mm] = (time || '09:00').split(':').map(Number);
+    const at = new Date(y, m - 1, d, hh, mm);
+    at.setMinutes(at.getMinutes() - remindBefore);
+    return at.toISOString();
+  }
+
   function find(id) {
     for (const key of Object.keys(byDate)) {
       const index = byDate[key].findIndex((t) => t.id === id);
@@ -91,6 +105,8 @@ const Tasks = (() => {
       note: task.note || null,
       done: task.done,
       owner: task.owner,
+      remind_before: task.remindBefore ?? null,
+      remind_at: task.remindAt || null,
       created_at: task.createdAt,
       updated_at: task.updatedAt,
     };
@@ -105,6 +121,8 @@ const Tasks = (() => {
       note: row.note || '',
       done: Boolean(row.done),
       owner: row.owner,
+      remindBefore: row.remind_before ?? null,
+      remindAt: row.remind_at || null,
       createdAt: row.created_at,
       updatedAt: row.updated_at || row.created_at,
     };
@@ -112,7 +130,10 @@ const Tasks = (() => {
 
   /** Патч задачи → патч строки БД (только изменённые поля). */
   function patchToRow(patch) {
-    const map = { date: 'date', time: 'start_time', endTime: 'end_time', title: 'title', note: 'note', done: 'done', owner: 'owner', updatedAt: 'updated_at' };
+    const map = {
+      date: 'date', time: 'start_time', endTime: 'end_time', title: 'title', note: 'note',
+      done: 'done', owner: 'owner', updatedAt: 'updated_at', remindBefore: 'remind_before', remindAt: 'remind_at',
+    };
     const row = {};
     Object.keys(patch).forEach((k) => {
       if (map[k]) row[map[k]] = patch[k] === '' ? null : patch[k];
@@ -164,6 +185,8 @@ const Tasks = (() => {
       note: (data.note || '').trim(),
       done: false,
       owner: data.owner || 'both',
+      remindBefore: data.remindBefore ?? null,
+      remindAt: computeRemindAt(data.date, data.time || null, data.remindBefore ?? null),
       createdAt: now, // время создания сохраняется автоматически
       updatedAt: now,
     };
@@ -191,7 +214,14 @@ const Tasks = (() => {
     removeLocal(id);
     const updated = { ...before, ...fullPatch };
     delete updated.date;
-    putLocal(patch.date || beforeKey, updated);
+    const newKey = patch.date || beforeKey;
+
+    // Сдвинули дату, время или «за сколько» — пересчитываем момент напоминания
+    if ('date' in patch || 'time' in patch || 'remindBefore' in patch) {
+      updated.remindAt = computeRemindAt(newKey, updated.time, updated.remindBefore ?? null);
+      fullPatch.remindAt = updated.remindAt;
+    }
+    putLocal(newKey, updated);
     saveCache();
     emit();
 

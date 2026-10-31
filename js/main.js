@@ -33,6 +33,14 @@ const els = {
   fTime: $('f-time'),
   fEnd: $('f-end'),
   fNote: $('f-note'),
+  fRemind: $('f-remind'),
+  fRemindHint: $('f-remind-hint'),
+  bellBtn: $('bell-btn'),
+  notifyModal: $('notify-modal'),
+  notifyText: $('notify-text'),
+  notifyOn: $('notify-on'),
+  notifyOff: $('notify-off'),
+  notifyTest: $('notify-test'),
   fOwner: $('f-owner'),
   fError: $('f-error'),
   fMeta: $('f-meta'),
@@ -328,6 +336,12 @@ function createTaskItem(task) {
   const time = TimeUtils.range(task);
   metaText.textContent = [ownerInfo(task.owner).name, time || 'весь день'].join(' · ');
   meta.append(dot, metaText);
+  if (task.remindBefore !== null && task.remindBefore !== undefined) {
+    const bell = svgIcon('M6 16V11a6 6 0 0 1 12 0v5l1.5 2h-15zM10 20a2 2 0 0 0 4 0');
+    bell.classList.add('task__bell');
+    bell.setAttribute('aria-label', 'С напоминанием');
+    meta.appendChild(bell);
+  }
   body.append(title, meta);
   if (task.note) {
     const note = document.createElement('span');
@@ -398,6 +412,10 @@ function openCreate(draft = {}) {
   els.fNote.value = '';
   els.fMeta.textContent = '';
   els.fDelete.hidden = true;
+  // По умолчанию напоминаем за 15 минут, если у задачи есть время
+  els.fRemind.value = els.fTime.value ? '15' : '';
+  remindTouched = false;
+  updateRemindHint();
   state.formOwner = state.mySlot || 'both';
   renderOwnerPick();
   resetFormErrors();
@@ -414,6 +432,9 @@ function openEdit(id) {
   els.fTime.value = task.time || '';
   els.fEnd.value = task.endTime || '';
   els.fNote.value = task.note || '';
+  els.fRemind.value = task.remindBefore === null || task.remindBefore === undefined ? '' : String(task.remindBefore);
+  remindTouched = true;
+  updateRemindHint();
   const created = new Date(task.createdAt);
   els.fMeta.textContent = Number.isNaN(created.getTime())
     ? ''
@@ -423,6 +444,13 @@ function openEdit(id) {
   renderOwnerPick();
   resetFormErrors();
   openModal(els.taskModal, null);
+}
+
+let remindTouched = false;
+
+/** Подсказка под «Напомнить» нужна только задачам без времени. */
+function updateRemindHint() {
+  els.fRemindHint.hidden = Boolean(els.fTime.value) || els.fRemind.value === '';
 }
 
 function formError(message, field) {
@@ -454,6 +482,7 @@ function handleFormSubmit(e) {
     endTime: time && endTime ? endTime : null,
     note: els.fNote.value.trim(),
     owner: state.formOwner,
+    remindBefore: els.fRemind.value === '' ? null : Number(els.fRemind.value),
   };
 
   state.selectedKey = date;
@@ -492,7 +521,7 @@ function confirmDelete() {
 let lastFocus = null;
 
 function openModal(modal, focusEl) {
-  if (els.taskModal.hidden && els.confirmModal.hidden) lastFocus = document.activeElement;
+  if (!anyModalOpen()) lastFocus = document.activeElement;
   modal.hidden = false;
   setTimeout(() => (focusEl || modal.querySelector('input, button')).focus(), 30);
 }
@@ -500,12 +529,84 @@ function openModal(modal, focusEl) {
 function closeModal(modal) {
   if (modal.hidden) return;
   modal.hidden = true;
-  if (els.taskModal.hidden && els.confirmModal.hidden && lastFocus && document.contains(lastFocus)) {
+  if (!anyModalOpen() && lastFocus && document.contains(lastFocus)) {
     lastFocus.focus({ preventScroll: true });
   }
 }
 
-const anyModalOpen = () => !els.taskModal.hidden || !els.confirmModal.hidden;
+function anyModalOpen() {
+  return !els.taskModal.hidden || !els.confirmModal.hidden || !els.notifyModal.hidden;
+}
+
+// ---------- Уведомления ----------
+
+const NOTIFY_TEXTS = {
+  on: 'Уведомления включены на этом устройстве. Напоминания о задачах приходят вам обоим.',
+  off: 'Включи, чтобы получать напоминания о задачах на это устройство. Время напоминания выбирается в каждой задаче.',
+  denied: 'Уведомления запрещены в настройках браузера. Разреши их для этого сайта и открой это окно снова.',
+  'ios-home': 'На iPhone уведомления работают только из приложения на экране «Домой»: «Поделиться» → «На экран „Домой“», затем открой Our Days с этой иконки.',
+  unsupported: 'Этот браузер не умеет push-уведомления. Попробуй Chrome, Edge, Firefox или Safari.',
+};
+
+let notifyStatus = 'unavailable';
+
+async function refreshBell() {
+  try {
+    notifyStatus = await Push.getStatus();
+  } catch (err) {
+    notifyStatus = 'unsupported';
+  }
+  els.bellBtn.hidden = notifyStatus === 'unavailable';
+  els.bellBtn.classList.toggle('is-on', notifyStatus === 'on');
+  els.bellBtn.title = notifyStatus === 'on' ? 'Уведомления включены' : 'Уведомления';
+}
+
+function renderNotifyModal() {
+  els.notifyText.textContent = NOTIFY_TEXTS[notifyStatus] || '';
+  els.notifyOn.hidden = notifyStatus !== 'off';
+  els.notifyTest.hidden = notifyStatus !== 'on';
+  els.notifyOff.hidden = notifyStatus !== 'on';
+}
+
+async function openNotify() {
+  await refreshBell();
+  renderNotifyModal();
+  openModal(els.notifyModal, null);
+}
+
+/** Вызывается прямо из нажатия — иначе iPhone не покажет запрос разрешения. */
+function enableNotifications() {
+  els.notifyOn.disabled = true;
+  Push.enable()
+    .then(() => showToast('Уведомления включены'))
+    .catch((err) => {
+      if (err.code !== 'denied') showToast('Не получилось включить уведомления');
+    })
+    .finally(async () => {
+      els.notifyOn.disabled = false;
+      await refreshBell();
+      renderNotifyModal();
+    });
+}
+
+async function disableNotifications() {
+  await Push.disable().catch(() => {});
+  await refreshBell();
+  renderNotifyModal();
+  showToast('Уведомления на этом устройстве выключены');
+}
+
+async function testNotifications() {
+  els.notifyTest.disabled = true;
+  try {
+    const res = await Push.test();
+    showToast(res.sent ? 'Тестовое уведомление отправлено' : 'Нет подписанных устройств');
+  } catch (err) {
+    showToast('Сервер уведомлений не отвечает');
+  } finally {
+    els.notifyTest.disabled = false;
+  }
+}
 
 // ---------- Синхронизация ----------
 
@@ -591,6 +692,19 @@ function bindUI() {
   els.panelClose.addEventListener('click', closeSheet);
   els.backdrop.addEventListener('click', closeSheet);
   els.logoutBtn.addEventListener('click', logout);
+  els.bellBtn.addEventListener('click', openNotify);
+  els.notifyOn.addEventListener('click', enableNotifications);
+  els.notifyOff.addEventListener('click', disableNotifications);
+  els.notifyTest.addEventListener('click', testNotifications);
+  els.fRemind.addEventListener('change', () => {
+    remindTouched = true;
+    updateRemindHint();
+  });
+  els.fTime.addEventListener('input', () => {
+    // Указали время в новой задаче — предлагаем напоминание за 15 минут
+    if (!remindTouched && !state.editingId) els.fRemind.value = els.fTime.value ? '15' : '';
+    updateRemindHint();
+  });
 
   els.taskForm.addEventListener('submit', handleFormSubmit);
   els.fDelete.addEventListener('click', () => askDelete(state.editingId));
@@ -602,6 +716,7 @@ function bindUI() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       if (!els.confirmModal.hidden) closeModal(els.confirmModal);
+      else if (!els.notifyModal.hidden) closeModal(els.notifyModal);
       else if (!els.taskModal.hidden) closeModal(els.taskModal);
       else closeSheet();
       return;
@@ -669,8 +784,19 @@ function bindUI() {
 
 // ---------- Старт ----------
 
+/** Открыли из уведомления: ?date=YYYY-MM-DD — показываем этот день. */
+function applyDateFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const date = params.get('date');
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return;
+  state.selectedKey = date;
+  state.cursor = DateUtils.fromKey(date);
+  window.history.replaceState(null, '', window.location.pathname);
+}
+
 function startApp() {
   els.app.hidden = false;
+  applyDateFromUrl();
   if (!started) {
     started = true;
     bindUI();
@@ -688,6 +814,7 @@ function startApp() {
     loadMembers().then(render);
     importLocalOnce().then(syncNow, () => {});
     startPolling();
+    refreshBell().then(() => Push.refresh()).catch(() => {});
   }
 }
 
