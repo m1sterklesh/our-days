@@ -9,8 +9,8 @@
  * политики RLS из supabase/schema.sql, а не секретность ключа.
  */
 const CONFIG = {
-  SUPABASE_URL: '',
-  SUPABASE_ANON_KEY: '',
+  SUPABASE_URL: 'https://xspsngqfsgxcaowfdrqf.supabase.co',
+  SUPABASE_ANON_KEY: 'sb_publishable_E2gxrM5W3mbzMOWtPngr2w_tXa1UThr',
 
   // Только для локального режима. Это декорация, а не защита.
   LOCAL_CODE: '520',
