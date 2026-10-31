@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <meta name="theme-color" content="#FFF9F5">
+  <title>Our Days</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800&family=Nunito+Sans:opsz,wght@6..12,400;6..12,600;6..12,700&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ============ ДВЕРЬ ============ -->
+  <div class="gate" id="gate" hidden>
+    <form class="gate__card" id="gate-form" novalidate>
+      <svg class="gate__icon" viewBox="0 0 64 64" aria-hidden="true">
+        <path d="M32 54 C 14 42, 6 32, 6 22 A 12 12 0 0 1 32 16 A 12 12 0 0 1 58 22 C 58 32, 50 42, 32 54 Z" />
+        <rect x="24" y="26" width="16" height="13" rx="4" />
+        <path d="M27 26 v-3 a5 5 0 0 1 10 0 v3" />
+      </svg>
+      <h1 class="gate__title">Our Days</h1>
+      <p class="gate__hint">Введи наш секретный код</p>
+
+      <!-- Локальный режим: один код -->
+      <div class="gate__fields" id="gate-local">
+        <input class="gate__input" id="gate-code" type="password" inputmode="numeric"
+               autocomplete="off" placeholder="• • •" aria-label="Секретный код">
+      </div>
+
+      <!-- Облачный режим: почта и пароль -->
+      <div class="gate__fields" id="gate-remote" hidden>
+        <input class="gate__input gate__input--text" id="gate-email" type="email"
+               autocomplete="username" placeholder="почта" aria-label="Почта">
+        <input class="gate__input gate__input--text" id="gate-password" type="password"
+               autocomplete="current-password" placeholder="пароль" aria-label="Пароль">
+      </div>
+
+      <button class="btn btn--primary gate__btn" type="submit" id="gate-btn">Войти</button>
+      <p class="gate__error" id="gate-error" role="alert"></p>
+    </form>
+  </div>
+
+  <!-- ============ ПРИЛОЖЕНИЕ ============ -->
+  <div class="app" id="app" hidden>
+    <header class="topbar">
+      <div class="topbar__row">
+        <div class="brand">
+          <svg class="brand__icon" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M12 21 C 5 16, 2 12, 2 8.5 A 4.5 4.5 0 0 1 12 6 A 4.5 4.5 0 0 1 22 8.5 C 22 12, 19 16, 12 21 Z" />
+          </svg>
+          <span>Our Days</span>
+        </div>
+        <div class="topbar__right">
+          <span class="badge" id="mode-badge" hidden></span>
+          <button class="icon-btn" type="button" id="logout-btn" hidden aria-label="Выйти" title="Выйти">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 4h3a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-3M10 17l-5-5 5-5M5 12h11" /></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <div class="toolbar__nav">
+          <button class="icon-btn" type="button" id="prev-btn" aria-label="Назад">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 6l-6 6 6 6" /></svg>
+          </button>
+          <h2 class="toolbar__title" id="title" aria-live="polite"></h2>
+          <button class="icon-btn" type="button" id="next-btn" aria-label="Вперёд">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+          </button>
+          <button class="btn btn--soft" type="button" id="today-btn">Сегодня</button>
+        </div>
+
+        <div class="toolbar__controls">
+          <div class="filters" id="filters" aria-label="Чьи планы показывать"></div>
+          <div class="segmented" role="group" aria-label="Вид календаря">
+            <button type="button" class="segmented__btn" data-view="month">Месяц</button>
+            <button type="button" class="segmented__btn" data-view="week" id="week-btn">Неделя</button>
+          </div>
+          <button class="btn btn--primary btn--add" type="button" id="add-btn" aria-label="Новая задача">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+            <span>Задача</span>
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="card calendar" id="calendar" aria-label="Календарь"></section>
+
+      <aside class="card panel" id="panel" aria-labelledby="panel-title">
+        <div class="panel__grip" aria-hidden="true"></div>
+        <div class="panel__head">
+          <div>
+            <h2 class="panel__title" id="panel-title"></h2>
+            <p class="panel__sub" id="panel-sub"></p>
+          </div>
+          <button class="icon-btn panel__close" type="button" id="panel-close" aria-label="Закрыть">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+        </div>
+        <ul class="tasks" id="task-list"></ul>
+        <p class="panel__empty" id="panel-empty">Пока пусто — самое время что-нибудь запланировать</p>
+        <button class="btn btn--primary btn--block" type="button" id="panel-add">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+          Добавить задачу
+        </button>
+      </aside>
+    </main>
+  </div>
+
+  <div class="backdrop" id="sheet-backdrop"></div>
+
+  <!-- ============ ФОРМА ЗАДАЧИ ============ -->
+  <div class="modal" id="task-modal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <form class="modal__card" id="task-form" novalidate role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
+      <h2 class="modal__title" id="task-modal-title">Новая задача</h2>
+
+      <label class="field">
+        <span class="field__label">Название</span>
+        <input class="field__input" id="f-title" type="text" maxlength="120" placeholder="Что планируем?" autocomplete="off">
+      </label>
+
+      <div class="field-row">
+        <label class="field">
+          <span class="field__label">Дата</span>
+          <input class="field__input" id="f-date" type="date">
+        </label>
+        <label class="field">
+          <span class="field__label">С</span>
+          <input class="field__input" id="f-time" type="time" step="300">
+        </label>
+        <label class="field">
+          <span class="field__label">До</span>
+          <input class="field__input" id="f-end" type="time" step="300">
+        </label>
+      </div>
+
+      <div class="field">
+        <span class="field__label">Чьё</span>
+        <div class="owner-pick" id="f-owner" role="radiogroup" aria-label="Чья задача"></div>
+      </div>
+
+      <label class="field">
+        <span class="field__label">Заметка</span>
+        <textarea class="field__input field__input--area" id="f-note" rows="3" maxlength="1000" placeholder="Необязательно"></textarea>
+      </label>
+
+      <p class="form-error" id="f-error" role="alert"></p>
+      <p class="form-meta" id="f-meta"></p>
+
+      <div class="modal__actions">
+        <button class="btn btn--danger-soft" type="button" id="f-delete" hidden>Удалить</button>
+        <span class="modal__spacer"></span>
+        <button class="btn btn--soft" type="button" data-close>Отмена</button>
+        <button class="btn btn--primary" type="submit">Сохранить</button>
+      </div>
+    </form>
+  </div>
+
+  <!-- ============ ПОДТВЕРЖДЕНИЕ УДАЛЕНИЯ ============ -->
+  <div class="modal" id="confirm-modal" hidden>
+    <div class="modal__backdrop" data-close></div>
+    <div class="modal__card modal__card--small" role="alertdialog" aria-modal="true" aria-labelledby="confirm-text">
+      <p class="confirm__text" id="confirm-text"></p>
+      <div class="modal__actions">
+        <span class="modal__spacer"></span>
+        <button class="btn btn--soft" type="button" data-close>Оставить</button>
+        <button class="btn btn--danger" type="button" id="confirm-ok">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/tasks.js"></script>
+  <script src="js/drag.js"></script>
+  <script src="js/calendar.js"></script>
+  <script src="js/week.js"></script>
+  <script src="js/gate.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>
